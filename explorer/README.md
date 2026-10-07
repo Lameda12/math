@@ -18,6 +18,18 @@ Outputs:
 - `artifact.html`: the same page without the document wrapper, for claude.ai artifacts
 
 Edit `template.html` for the page and the `HOOKS` dict in `build.py` for the plain-English one-liners.
+`SITE_URL` in `build.py` sets the canonical, Open Graph and Twitter card URLs.
+
+## Social card
+
+`og.png` (1200x630) is rendered from `og.html` with Playwright:
+
+```sh
+node explorer/render_og.js path/to/fonts.css
+```
+
+`fonts.css` is a Google Fonts stylesheet (Lexend, Atkinson Hyperlegible) saved locally with its
+`.ttf` files beside it; they are inlined so the render needs no network. Rebuild after the data changes.
 
 ## Deploy
 

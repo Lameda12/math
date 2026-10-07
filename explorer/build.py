@@ -24,6 +24,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = Path(__file__).resolve().parent
 REPO_URL = "https://github.com/Lameda12/math/blob/main"
+SITE_URL = "https://math-explorer-fawn.vercel.app"
+SITE_TITLE = "The Proposition"
+SITE_DESC = ("An AI wrote 722 math papers, 34,815 pages. Skim all 372 results one card at a time, "
+             "with a one-line summary for each and whether it's Lean-checked.")
+FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
+           "%3Crect width='32' height='32' rx='7' fill='%230f1216'/%3E"
+           "%3Crect x='10' y='9' width='12' height='14' fill='%2358c4dd'/%3E%3C/svg%3E")
 
 TRACES = {
     "007": "ordinary-two-point-correlations.pdf",
@@ -198,17 +205,44 @@ def build(count_pages: bool) -> dict:
     }
 
 
+def head_tags(data: dict) -> str:
+    """<head> for the standalone page: title, description, Open Graph and Twitter cards."""
+    t = data["totals"]
+    desc = html.escape(SITE_DESC, quote=True)
+    alt = html.escape(f"An AI wrote {t['papers']} math papers, {t['pages']:,} pages. You really wanna read all of it?", quote=True)
+    return f"""<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{SITE_TITLE}</title>
+<meta name="description" content="{desc}">
+<link rel="canonical" href="{SITE_URL}/">
+<link rel="icon" href="{FAVICON}">
+<meta name="theme-color" content="#0f1216">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{SITE_TITLE}">
+<meta property="og:title" content="{SITE_TITLE}: you really wanna read all 722 papers?">
+<meta property="og:description" content="{desc}">
+<meta property="og:url" content="{SITE_URL}/">
+<meta property="og:image" content="{SITE_URL}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{alt}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{SITE_TITLE}: you really wanna read all 722 papers?">
+<meta name="twitter:description" content="{desc}">
+<meta name="twitter:image" content="{SITE_URL}/og.png">
+<meta name="twitter:image:alt" content="{alt}">
+"""
+
+
 def render(data: dict, template: Path) -> tuple[str, str]:
     """Return (artifact body, standalone document)."""
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     # Keep the JSON inert inside <script>: no closing tags, no HTML comments.
     payload = payload.replace("</", "<\\/").replace("<!--", "<\\!--")
     body = template.read_text(encoding="utf-8").replace("/*__DATA__*/null", payload)
-    standalone = (
-        '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-        f"</head>\n<body>\n{body}\n</body>\n</html>\n"
-    )
+    # The standalone page carries its <title> in <head> with the rest of the metadata.
+    page = re.sub(r"<title>.*?</title>\n?", "", body, count=1)
+    standalone = f'<!doctype html>\n<html lang="en">\n<head>\n{head_tags(data)}</head>\n<body>\n{page}\n</body>\n</html>\n'
     return body, standalone
 
 
