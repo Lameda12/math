@@ -26,6 +26,13 @@ OUT = Path(__file__).resolve().parent
 REPO_URL = "https://github.com/Lameda12/math/blob/main"
 SITE_URL = "https://math-explorer-fawn.vercel.app"
 SITE_TITLE = "The Proposition"
+# Shared verdict counts (Supabase). The anon key is public by design: the database only exposes
+# proposition_cast and proposition_counts; see supabase/migration.sql.
+SHARED = {
+    "url": "https://wsgnjawrmokkvrfgpmpl.supabase.co",
+    "key": ("eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndzZ25qYXdybW9ra3ZyZmdwbXBsIiwi"
+            "cm9sZSI6ImFub24iLCJpYXQiOjE3OTA3NDExNzUsImV4cCI6MjEwNjMxNzE3NX0.T0HIgAXolpxn1UAeuM0L8F4lKp3y8Ywljl8BsNwjfQA"),
+}
 SITE_DESC = ("372 claimed results from an unreleased OpenAI model, 722 unrefereed manuscripts. "
              "Triage the ones in your field: the claim, the Lean statement where one exists, "
              "the evidence behind it, and a reading list with BibTeX.")
@@ -325,7 +332,8 @@ def render(data: dict, template: Path) -> tuple[str, str]:
     payload = payload.replace("</", "<\\/").replace("<!--", "<\\!--")
     body = (template.read_text(encoding="utf-8")
             .replace("/*__DATA__*/null", payload)
-            .replace('/*__SITE__*/""', json.dumps(SITE_URL)))
+            .replace('/*__SITE__*/""', json.dumps(SITE_URL))
+            .replace("/*__SHARED__*/null", json.dumps(SHARED)))
     # The standalone page carries its <title> in <head> with the rest of the metadata.
     page = re.sub(r"<title>.*?</title>\n?", "", body, count=1)
     standalone = f'<!doctype html>\n<html lang="en">\n<head>\n{head_tags(data)}</head>\n<body>\n{page}\n</body>\n</html>\n'

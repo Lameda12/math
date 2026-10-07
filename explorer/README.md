@@ -9,7 +9,14 @@ manuscripts, 34,815 pages.
   statement Comparator checks against, the formalization's scope note, and the papers (abstracts,
   PDFs, BibTeX) open on demand. Judge with 1 to 4 (Read it, Doubt it, Not new, Not my area).
 - **Reading list**: everything marked Read it or Doubt it, exportable as BibTeX or Markdown.
-- Search with `/` or Cmd/Ctrl+K. Judgments stay in the browser (localStorage).
+- Search with `/` or Cmd/Ctrl+K.
+- **Shared signal**: judgments are pooled anonymously in Supabase. A result's breakdown is revealed
+  only after you judge it (so the crowd can't anchor you); the map shows the most wanted and most
+  doubted results. The browser keeps a random token; the database stores only its hash, plus a keyed
+  hash of the network address to cap new voters at 50 per network per day. Tables are closed to the
+  API; the page calls only `proposition_cast` and `proposition_counts`
+  ([`supabase/migration.sql`](supabase/migration.sql)). If the API is unreachable (for example inside
+  a claude.ai artifact, whose sandbox blocks it), the page works as before without the shared signal.
 
 ## Build
 
