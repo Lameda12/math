@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>The Proposition: social card</title>
+<!-- Rendered to og.png (1200x630) by render_og.js. Manim-style: dark plane, faint grid,
+     blue = Lean-checked, brown = paper only, a curly brace labelling the pile. -->
+<style>
+:root {
+  --bg: #0f1216;
+  --grid: rgba(88, 196, 221, 0.10);
+  --axis: rgba(221, 221, 221, 0.55);
+  --text: #ece9e2;
+  --muted: #9aa3ad;
+  --blue: #58c4dd;
+  --brown: #cd853f;
+  --yellow: #f4d345;
+  --head: "Lexend", "Inter", "DejaVu Sans", sans-serif;
+  --body: "Atkinson Hyperlegible", "Inter", "DejaVu Sans", sans-serif;
+}
+html, body { margin: 0; background: var(--bg); }
+.card { position: relative; width: 1200px; height: 630px; overflow: hidden; color: var(--text); font-family: var(--body); }
+canvas { position: absolute; inset: 0; }
+.copy { position: absolute; left: 72px; top: 58px; right: 72px; }
+.eyebrow { font-family: var(--body); font-weight: 700; font-size: 24px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue); }
+h1 { margin: 16px 0 0; font-family: var(--head); font-size: 60px; line-height: 1.08; font-weight: 700; letter-spacing: -0.015em; }
+h1 .y { color: var(--yellow); }
+.ask { margin: 20px 0 0; font-size: 31px; color: var(--text); max-width: 40ch; line-height: 1.3; }
+.ask .qed { font-style: normal; color: var(--blue); margin-left: 10px; }
+.foot { position: absolute; left: 72px; right: 72px; bottom: 30px; display: flex; justify-content: space-between; font-family: var(--body); font-size: 21px; color: var(--muted); }
+.key { display: inline-flex; gap: 22px; }
+.key span { display: inline-flex; align-items: center; gap: 8px; }
+.key i { width: 14px; height: 14px; display: inline-block; border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <canvas id="c" width="1200" height="630"></canvas>
+  <div class="copy">
+    <div class="eyebrow">The Proposition</div>
+    <h1><span id="families">372</span> claimed results. <span id="papers">722</span> papers.<br><span class="y"><span id="pages">34,815</span> pages.</span></h1>
+    <p class="ask">Triage the ones in your field: the claim, the Lean statement, the evidence.</p>
+  </div>
+  <div class="foot">
+    <span class="key"><span><i style="background:var(--blue)"></i>Lean-formalized</span><span><i style="background:var(--brown)"></i>paper only</span></span>
+    <span id="site">math-explorer-fawn.vercel.app</span>
+  </div>
+</div>
+<script>
+// Called by render_og.js with { papers: [{pages, lean}], totals, site }.
+window.draw = ({ papers, totals, site }) => {
+  const fmt = (n) => n.toLocaleString("en-US");
+  document.getElementById("families").textContent = fmt(totals.families);
+  document.getElementById("papers").textContent = fmt(totals.papers);
+  document.getElementById("pages").textContent = fmt(totals.pages);
+  document.getElementById("site").textContent = site;
+
+  const css = getComputedStyle(document.documentElement);
+  const v = (k) => css.getPropertyValue(k).trim();
+  const ctx = document.getElementById("c").getContext("2d");
+  const W = 1200, H = 630;
+
+  // number-plane grid
+  ctx.strokeStyle = v("--grid");
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= W; x += 50) { ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); ctx.stroke(); }
+  for (let y = 0; y <= H; y += 50) { ctx.beginPath(); ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); ctx.stroke(); }
+
+  // bars: one per paper, height proportional to page count
+  const x0 = 72, x1 = W - 72, base = 520, maxH = 150;
+  const tallest = Math.max(...papers.map((p) => p.pages));
+  const bw = (x1 - x0) / papers.length;
+  papers.forEach((p, i) => {
+    const h = Math.max(1.5, (p.pages / tallest) * maxH);
+    ctx.fillStyle = p.lean ? v("--blue") : v("--brown");
+    ctx.globalAlpha = 0.92;
+    ctx.fillRect(x0 + i * bw, base - h, Math.max(bw - 0.4, 0.8), h);
+  });
+  ctx.globalAlpha = 1;
+
+  // x-axis with ticks
+  ctx.strokeStyle = v("--axis");
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x0 - 8, base + 0.5); ctx.lineTo(x1 + 8, base + 0.5); ctx.stroke();
+  for (let i = 0; i <= 10; i++) {
+    const x = x0 + ((x1 - x0) * i) / 10;
+    ctx.beginPath(); ctx.moveTo(x, base - 5); ctx.lineTo(x, base + 6); ctx.stroke();
+  }
+
+  // curly brace under the axis, pointing down at its label
+  brace(ctx, x0, x1, base + 16, 18, v("--yellow"));
+};
+
+function brace(ctx, xa, xb, y, depth, color) {
+  const mid = (xa + xb) / 2, q = depth / 2;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(xa, y);
+  ctx.quadraticCurveTo(xa, y + q, xa + depth, y + q);
+  ctx.lineTo(mid - depth, y + q);
+  ctx.quadraticCurveTo(mid, y + q, mid, y + depth);
+  ctx.quadraticCurveTo(mid, y + q, mid + depth, y + q);
+  ctx.lineTo(xb - depth, y + q);
+  ctx.quadraticCurveTo(xb, y + q, xb, y);
+  ctx.stroke();
+}
+</script>
+</body>
+</html>

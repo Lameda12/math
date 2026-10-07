@@ -1,8 +1,22 @@
 # The Proposition
 
-A one-page skimmer for this collection: 722 papers, 34,815 pages, one card per result family.
-Each card shows a one-line statement, whether the result has a Lean formalization, and the papers
-behind it (abstracts, page counts, PDF links).
+A triage tool for researchers working through this collection: 372 claimed results, 722 unrefereed
+manuscripts, 34,815 pages.
+
+- **Map**: one row per field (with arXiv-style codes), one square per result, colored by evidence:
+  Lean-formalized, computational checks, or paper only.
+- **Triage**: one result at a time, in layers. The claim and a plain-words line come first; the Lean
+  statement Comparator checks against, the formalization's scope note, and the papers (abstracts,
+  PDFs, BibTeX) open on demand. Judge with 1 to 4 (Read it, Doubt it, Not new, Not my area).
+- **Reading list**: everything marked Read it or Doubt it, exportable as BibTeX or Markdown.
+- Search with `/` or Cmd/Ctrl+K.
+- **Shared signal**: judgments are pooled anonymously in Supabase. A result's breakdown is revealed
+  only after you judge it (so the crowd can't anchor you); the map shows the most wanted and most
+  doubted results. The browser keeps a random token; the database stores only its hash, plus a keyed
+  hash of the network address to cap new voters at 50 per network per day. Tables are closed to the
+  API; the page calls only `proposition_cast` and `proposition_counts`
+  ([`supabase/migration.sql`](supabase/migration.sql)). If the API is unreachable (for example inside
+  a claude.ai artifact, whose sandbox blocks it), the page works as before without the shared signal.
 
 ## Build
 
@@ -18,6 +32,18 @@ Outputs:
 - `artifact.html`: the same page without the document wrapper, for claude.ai artifacts
 
 Edit `template.html` for the page and the `HOOKS` dict in `build.py` for the plain-English one-liners.
+`SITE_URL` in `build.py` sets the canonical, Open Graph and Twitter card URLs.
+
+## Social card
+
+`og.png` (1200x630) is rendered from `og.html` with Playwright:
+
+```sh
+node explorer/render_og.js path/to/fonts.css
+```
+
+`fonts.css` is a Google Fonts stylesheet (Lexend, Atkinson Hyperlegible) saved locally with its
+`.ttf` files beside it; they are inlined so the render needs no network. Rebuild after the data changes.
 
 ## Deploy
 
