@@ -26,8 +26,9 @@ OUT = Path(__file__).resolve().parent
 REPO_URL = "https://github.com/Lameda12/math/blob/main"
 SITE_URL = "https://math-explorer-fawn.vercel.app"
 SITE_TITLE = "The Proposition"
-SITE_DESC = ("An AI wrote 722 math papers, 34,815 pages. Skim all 372 results one card at a time, "
-             "with a one-line summary for each and whether it's Lean-checked.")
+SITE_DESC = ("372 claimed results from an unreleased OpenAI model, 722 unrefereed manuscripts. "
+             "Triage the ones in your field: the claim, the Lean statement where one exists, "
+             "the evidence behind it, and a reading list with BibTeX.")
 FAVICON = ("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E"
            "%3Crect width='32' height='32' rx='7' fill='%230f1216'/%3E"
            "%3Crect x='10' y='9' width='12' height='14' fill='%2358c4dd'/%3E%3C/svg%3E")
@@ -82,6 +83,28 @@ HOOKS = {
     "375": "De Giorgi's conjecture in dimension 8, its sharp endpoint.",
     "376": "Viscous fluids can compute: forced Navier–Stokes flows that simulate any Turing machine.",
 }
+
+# arXiv-style subject codes, so researchers can find their field at a glance.
+FIELD_CODES = {
+    "Number theory": ["math.NT"],
+    "Algebraic and complex geometry": ["math.AG", "math.CV"],
+    "Real and complex analysis": ["math.CA", "math.CV"],
+    "Convex and metric geometry": ["math.MG"],
+    "Theoretical computer science": ["cs.CC", "cs.DS"],
+    "Dynamical systems and ergodic theory": ["math.DS"],
+    "Combinatorics": ["math.CO"],
+    "Algebra": ["math.RA", "math.AC", "math.RT"],
+    "Probability and statistical mechanics": ["math.PR", "math-ph"],
+    "Mathematical logic": ["math.LO"],
+    "Group theory": ["math.GR"],
+    "Mathematical physics": ["math-ph", "quant-ph"],
+    "Operator algebras": ["math.OA"],
+    "Topology": ["math.AT", "math.GT"],
+    "Functional analysis": ["math.FA"],
+    "Differential geometry": ["math.DG", "math.SG"],
+    "Partial differential equations": ["math.AP"],
+}
+LEAN_STATEMENT_MAX = 6000  # characters; longer challenge files are linked, not inlined
 
 FAMILY_RE = re.compile(r"^\*\*(\d{3})\. (.+?)\*\*\s*(.*)$")
 PAPER_RE = re.compile(r"^&emsp;\[(.+)\]\((preprints/.+?\.pdf)\)\s*(?:—\s*(.+))?$")
@@ -142,6 +165,50 @@ def parse_contents(path: Path) -> list[dict]:
     return families
 
 
+SCOPE_RE = re.compile(r"^## Scope\s*$(.*?)(?=^## |\Z)", re.M | re.S)
+CHALLENGE_ROW_RE = re.compile(r"^\|[ \t]*([^|\n]+?)[ \t]*\|[^\n]*?\]\(\.\./ComparatorChallenges/([A-Za-z0-9_]+\.lean)\)", re.M)
+MD_ANY_LINK_RE = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+
+
+def md_to_html(text: str) -> str:
+    """Minimal markdown for lean/docs scope notes: paragraphs, bold, $math$, links as text."""
+    paras = []
+    for para in re.split(r"\n\s*\n", text.strip()):
+        para = html.escape(MD_ANY_LINK_RE.sub(r"\1", " ".join(para.split())), quote=False)
+        para = re.sub(r"\$(.+?)\$", lambda m: r"\(" + m.group(1) + r"\)", para)
+        para = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", para)
+        paras.append(f"<p>{para}</p>")
+    return "".join(paras)
+
+
+def parse_lean_doc(path: Path) -> dict:
+    text = path.read_text(encoding="utf-8")
+    scope = SCOPE_RE.search(text)
+    statements = []
+    for label, fname in CHALLENGE_ROW_RE.findall(text):
+        src = ROOT / "lean" / "ComparatorChallenges" / fname
+        code = src.read_text(encoding="utf-8") if src.is_file() else None
+        statements.append({
+            "label": re.sub(r"\$(.+?)\$", lambda m: r"\(" + m.group(1) + r"\)",
+                            html.escape(MD_ANY_LINK_RE.sub(r"\1", label), quote=False)),
+            "file": fname,
+            "url": f"{REPO_URL}/lean/ComparatorChallenges/{fname}",
+            "code": code.strip() if code and len(code) <= LEAN_STATEMENT_MAX else None,
+        })
+    return {"scope": md_to_html(scope.group(1)) if scope else "", "statements": statements}
+
+
+BIBTEX_RE = re.compile(r"```bibtex\s*\n(.*?)```", re.S)
+
+
+def paper_bibtex(paper_dir: Path) -> str | None:
+    readme = paper_dir / "README.md"
+    if not readme.is_file():
+        return None
+    m = BIBTEX_RE.search(readme.read_text(encoding="utf-8"))
+    return m.group(1).strip() if m else None
+
+
 def parse_disciplines(path: Path) -> dict[str, str]:
     current, out = "Other", {}
     for line in path.read_text(encoding="utf-8").splitlines():
@@ -176,6 +243,8 @@ def build(count_pages: bool) -> dict:
         fid = fam["id"]
         fam["discipline"] = disciplines.get(fid, "Other")
         fam["lean"] = f"{REPO_URL}/lean/docs/{fid}.md" if fid in lean_docs else None
+        fam["formal"] = parse_lean_doc(ROOT / "lean" / "docs" / f"{fid}.md") if fid in lean_docs else None
+        fam["codes"] = FIELD_CODES.get(fam["discipline"], [])
         fam["trace"] = f"{REPO_URL}/reasoning_traces/{TRACES[fid]}" if fid in TRACES else None
         fam["hook"] = HOOKS.get(fid)
         for paper in fam["papers"]:
@@ -184,8 +253,19 @@ def build(count_pages: bool) -> dict:
                 cache[paper["path"]] = page_count(pdf)
             paper["pages"] = cache.get(paper["path"])
             paper["url"] = f"{REPO_URL}/{paper['path']}"
+            paper_dir = pdf.parent
+            paper["bibtex"] = paper_bibtex(paper_dir)
+            paper["verification"] = (
+                f"{REPO_URL.replace('/blob/', '/tree/')}/{paper['path'].rsplit('/', 1)[0]}/verification"
+                if (paper_dir / "verification").is_dir() else None
+            )
             del paper["path"]
         fam["pages"] = sum(p["pages"] or 0 for p in fam["papers"])
+        fam["evidence"] = (
+            "formal" if fam["lean"]
+            else "computational" if any(p["verification"] for p in fam["papers"])
+            else "paper"
+        )
 
     if count_pages:
         cache_path.write_text(json.dumps(cache, indent=0, sort_keys=True))
@@ -201,6 +281,8 @@ def build(count_pages: bool) -> dict:
             "papers": sum(len(f["papers"]) for f in families),
             "pages": sum(f["pages"] for f in families),
             "lean": sum(1 for f in families if f["lean"]),
+            "computational": sum(1 for f in families if f["evidence"] == "computational"),
+            "fields": len({f["discipline"] for f in families}),
         },
     }
 
@@ -209,7 +291,9 @@ def head_tags(data: dict) -> str:
     """<head> for the standalone page: title, description, Open Graph and Twitter cards."""
     t = data["totals"]
     desc = html.escape(SITE_DESC, quote=True)
-    alt = html.escape(f"An AI wrote {t['papers']} math papers, {t['pages']:,} pages. You really wanna read all of it?", quote=True)
+    alt = html.escape(
+        f"{t['families']} claimed results, {t['papers']} manuscripts, {t['pages']:,} pages. "
+        f"{t['lean']} with Lean formalizations. Find the ones in your field.", quote=True)
     return f"""<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>{SITE_TITLE}</title>
@@ -219,7 +303,7 @@ def head_tags(data: dict) -> str:
 <meta name="theme-color" content="#0f1216">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{SITE_TITLE}">
-<meta property="og:title" content="{SITE_TITLE}: you really wanna read all 722 papers?">
+<meta property="og:title" content="{SITE_TITLE}: triage 372 AI-claimed results in your field">
 <meta property="og:description" content="{desc}">
 <meta property="og:url" content="{SITE_URL}/">
 <meta property="og:image" content="{SITE_URL}/og.png">
@@ -227,7 +311,7 @@ def head_tags(data: dict) -> str:
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="{alt}">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="{SITE_TITLE}: you really wanna read all 722 papers?">
+<meta name="twitter:title" content="{SITE_TITLE}: triage 372 AI-claimed results in your field">
 <meta name="twitter:description" content="{desc}">
 <meta name="twitter:image" content="{SITE_URL}/og.png">
 <meta name="twitter:image:alt" content="{alt}">
@@ -239,7 +323,9 @@ def render(data: dict, template: Path) -> tuple[str, str]:
     payload = json.dumps(data, ensure_ascii=False, separators=(",", ":"))
     # Keep the JSON inert inside <script>: no closing tags, no HTML comments.
     payload = payload.replace("</", "<\\/").replace("<!--", "<\\!--")
-    body = template.read_text(encoding="utf-8").replace("/*__DATA__*/null", payload)
+    body = (template.read_text(encoding="utf-8")
+            .replace("/*__DATA__*/null", payload)
+            .replace('/*__SITE__*/""', json.dumps(SITE_URL)))
     # The standalone page carries its <title> in <head> with the rest of the metadata.
     page = re.sub(r"<title>.*?</title>\n?", "", body, count=1)
     standalone = f'<!doctype html>\n<html lang="en">\n<head>\n{head_tags(data)}</head>\n<body>\n{page}\n</body>\n</html>\n'
