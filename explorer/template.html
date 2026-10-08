@@ -114,6 +114,12 @@ main { flex: 1; }
 
 /* Intro */
 .intro h1 { font-size: var(--step-3); line-height: 1.04; font-weight: 600; letter-spacing: -0.01em; margin: 10px 0 14px; text-wrap: balance; font-variant-numeric: lining-nums; }
+.hero { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0 20px; }
+.hero ascii-art { font-size: 9px; color: var(--ink); opacity: 0.85; }
+@media (max-width: 560px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero ascii-art { order: -1; justify-self: center; font-size: 7px; margin-top: 8px; }
+}
 .intro .lede { font-size: var(--step-1); max-width: 34ch; margin: 0 0 24px; color: var(--muted); }
 .intro .ask { font-size: var(--step-2); font-style: italic; margin: 0 0 18px; }
 .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 30px; }
@@ -215,8 +221,13 @@ main { flex: 1; }
   <main>
     <section class="view intro" id="v-intro">
       <div class="wrap">
-        <div class="eyebrow">One AI model · ~4,000 open problems posed · <span data-t="families">372</span> results</div>
-        <h1><span data-t="papers">722</span> papers.<br><span class="hl swipe"><span data-t="pages">34,815</span> pages.</span></h1>
+        <div class="hero">
+          <div>
+            <div class="eyebrow">One AI model · ~4,000 open problems posed · <span data-t="families">372</span> results</div>
+            <h1><span data-t="papers">722</span> papers.<br><span class="hl swipe"><span data-t="pages">34,815</span> pages.</span></h1>
+          </div>
+          <ascii-art piece="donut" fps="24" label="A lit torus turning, drawn in ascii"></ascii-art>
+        </div>
         <p class="lede">At ten minutes a page, that is <span id="days">242</span> days of reading. No sleep.</p>
         <p class="ask">You really wanna read all of it?</p>
         <div class="cta">
@@ -275,6 +286,7 @@ window.MathJax = {
 };
 </script>
 <script async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+<script type="module" src="https://ascii.rest/ascii.js"></script>
 <script>
 (() => {
   const DATA = /*__DATA__*/null;
