@@ -77,10 +77,12 @@ a { color: inherit; text-underline-offset: 3px; text-decoration-thickness: 1px; 
 .ledger { margin-left: auto; display: flex; gap: 14px; font-family: var(--mono); font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; }
 .ledger strong { color: var(--ink); font-weight: 600; }
 .tabs { display: flex; gap: 4px; }
-.tab {
+.tab, .walk {
   font-family: var(--mono); font-size: var(--step--1); letter-spacing: 0.04em; text-transform: uppercase;
   background: none; border: 1px solid transparent; border-radius: 999px; padding: 4px 10px; cursor: pointer; color: var(--muted);
 }
+.walk { text-decoration: none; }
+.walk:hover { color: var(--ink); border-color: var(--rule); }
 .tab[aria-current="true"] { color: var(--ink); border-color: var(--rule); background: var(--card); }
 
 main { flex: 1; }
@@ -210,6 +212,7 @@ main { flex: 1; }
       <nav class="tabs" aria-label="Views">
         <button class="tab" type="button" data-view="deck">Deck</button>
         <button class="tab" type="button" data-view="index">All 372</button>
+        <a class="walk" href="walkthrough/">Walkthrough</a>
       </nav>
       <div class="ledger" aria-live="polite">
         <span>pages skipped <strong id="skipped">0</strong></span>

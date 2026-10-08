@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>A Tour of math/</title>
+<meta name="description" content="The Lameda12/math repository one directory at a time, drawn in animated ascii with ascii.rest.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,500&display=swap">
+<style>
+/* Layout: a night walk through the repo. A sticky `tree` of the repository on the left marks
+   where you are; each directory is a chapter that opens on the shell command you would type,
+   its real output, and a plate of ascii art drawn from what is in it. Gold means a result. */
+:root {
+  --night: #0a0d18;
+  --plate: #05070d;
+  --ink: #e4e6ee;
+  --muted: #9198ad;
+  --rule: rgba(228, 230, 238, 0.13);
+  --gold: #f2c14e;
+  --gold-soft: rgba(242, 193, 78, 0.12);
+  --checked: #5fd0a2;
+  --checked-soft: rgba(95, 208, 162, 0.12);
+  --serif: "STIX Two Text", "STIX Two", "Times New Roman", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --step--1: 0.8125rem;
+  --step-0: 1.0625rem;
+  --step-1: 1.3rem;
+  --step-2: clamp(1.6rem, 1.2rem + 1.6vw, 2.2rem);
+  --step-3: clamp(2.3rem, 1.4rem + 4vw, 4.4rem);
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --night: #eef1f5; --plate: #05070d; --ink: #141a2e; --muted: #535b72; --rule: rgba(20, 26, 46, 0.14);
+    --gold: #94650a; --gold-soft: rgba(148, 101, 10, 0.1); --checked: #0f7a57; --checked-soft: rgba(15, 122, 87, 0.1);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --night: #eef1f5; --plate: #05070d; --ink: #141a2e; --muted: #535b72; --rule: rgba(20, 26, 46, 0.14);
+  --gold: #94650a; --gold-soft: rgba(148, 101, 10, 0.1); --checked: #0f7a57; --checked-soft: rgba(15, 122, 87, 0.1);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 24px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: var(--step-0);
+  line-height: 1.6;
+}
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { color: var(--gold); }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; border-radius: 3px; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+
+.page { display: grid; grid-template-columns: minmax(0, 1fr); padding-inline: 16px; max-width: 84rem; margin-inline: auto; }
+@media (min-width: 1100px) { .page { grid-template-columns: 15.5rem minmax(0, 1fr); gap: 0 48px; padding-inline: 32px; } }
+
+/* The tree rail */
+.rail { display: none; }
+@media (min-width: 1100px) {
+  .rail { display: block; position: sticky; top: env(safe-area-inset-top, 0px); align-self: start; height: 100vh; padding-block: 40px; }
+}
+.tree { font-family: var(--mono); font-size: 0.8rem; line-height: 1.75; white-space: pre; color: var(--muted); }
+.tree a { text-decoration: none; color: var(--muted); }
+.tree a:hover { color: var(--ink); }
+.tree a[aria-current="true"] { color: var(--gold); }
+.tree a[aria-current="true"]::after { content: "  ◂"; }
+.tree .root { color: var(--ink); font-weight: 600; }
+.tree .n { color: var(--muted); opacity: 0.7; }
+.motion { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); margin: 0; }
+
+/* Chapters */
+main { min-width: 0; padding-block: 40px 96px; display: grid; gap: 112px; }
+.ch { display: grid; gap: 22px; min-width: 0; }
+.ch > :where(p, h2, h3, ul, ol, blockquote, .out) { max-width: 40rem; }
+.cmd { font-family: var(--mono); font-size: var(--step--1); color: var(--muted); margin: 0; letter-spacing: 0.01em; }
+.cmd b { color: var(--gold); font-weight: 500; }
+h1, h2, h3 { font-weight: 600; margin: 0; text-wrap: balance; letter-spacing: -0.01em; }
+h1 { font-size: var(--step-3); line-height: 1.02; }
+h1 em { font-style: normal; color: var(--gold); }
+h2 { font-size: var(--step-2); line-height: 1.12; }
+h3 { font-size: var(--step-1); line-height: 1.2; }
+p { margin: 0; }
+.lede { font-size: var(--step-1); line-height: 1.45; color: var(--ink); }
+.ch p:not(.lede):not(.cmd) { color: color-mix(in srgb, var(--ink) 86%, var(--night)); }
+.note { font-size: 0.95rem; color: var(--muted) !important; }
+
+/* stdout: the real commands and what they print */
+.out {
+  margin: 0; font-family: var(--mono); font-size: 0.8rem; line-height: 1.6; color: var(--muted);
+  border-left: 1px solid var(--rule); padding: 2px 0 2px 16px; overflow-x: auto; font-variant-numeric: tabular-nums;
+}
+.out b { color: var(--ink); font-weight: 500; }
+
+/* Plates: the scenes, framed as plates on their own dark ground */
+figure { margin: 0; min-width: 0; }
+.plate { display: grid; gap: 10px; }
+.plate ascii-art { display: block; border-radius: 4px; overflow: hidden; background: var(--plate); max-width: 100%; }
+.plate ascii-art canvas, .plate .hold { display: block; width: 100%; max-width: 100%; }
+/* On a phone a scene keeps its detail: drawn wider than the screen and cropped to its subject */
+@media (max-width: 640px) {
+  .plate:not(.whole) { overflow: hidden; }
+  .plate:not(.whole) ascii-art { width: 175%; max-width: none; margin-left: var(--shift, -37.5%); }
+}
+figcaption { font-size: 0.9rem; line-height: 1.5; color: var(--muted); max-width: 44rem; }
+figcaption b { color: var(--ink); font-weight: 600; }
+
+/* Text pieces: drawn in the page's own ink, sized so all their columns fit */
+.term { container-type: inline-size; display: grid; gap: 10px; }
+.term ascii-art { color: var(--ink); }
+.term ascii-art pre { font-size: min(13px, calc(100cqi / (var(--cols) * 0.62))); line-height: var(--lh, 1.2); margin: 0; }
+.term .frame { width: fit-content; max-width: 100%; border: 1px solid var(--rule); border-radius: 4px; padding: clamp(10px, 2.5cqi, 22px); overflow-x: auto; }
+
+/* The hero */
+.hero { display: grid; gap: 26px; }
+.eyebrow { font-family: var(--mono); font-size: var(--step--1); color: var(--muted); letter-spacing: 0.04em; margin: 0; }
+.ledger { display: flex; flex-wrap: wrap; gap: 8px 28px; font-family: var(--mono); font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; margin: 0; padding: 0; list-style: none; }
+.ledger strong { color: var(--ink); font-weight: 600; font-size: 1rem; }
+.ledger .g strong { color: var(--gold); }
+.ledger .c strong { color: var(--checked); }
+
+/* The field key */
+.fields { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-width: 44rem; font-size: 0.92rem; }
+.fields li { display: grid; grid-template-columns: 14px minmax(0, 15rem) minmax(0, 1fr) 4.5rem; align-items: center; gap: 12px; }
+.fields .sw { width: 14px; height: 14px; border-radius: 2px; }
+.fields .fn { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fields .bar { height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.fields .bar i { display: block; height: 100%; background: var(--muted); }
+.fields .fc { font-family: var(--mono); font-size: 0.8rem; text-align: right; font-variant-numeric: tabular-nums; }
+.fields .fc small { color: var(--muted); font-size: 0.72rem; }
+@media (max-width: 560px) { .fields li { grid-template-columns: 14px minmax(0, 1fr) 4.2rem; } .fields .bar { display: none; } }
+
+/* Quotes from the reasoning summaries */
+blockquote {
+  margin: 0; padding: 14px 18px; border-left: 2px solid var(--gold); background: var(--gold-soft);
+  font-family: var(--mono); font-size: 0.92rem; line-height: 1.55;
+}
+blockquote cite { display: block; margin-top: 6px; font-style: normal; font-size: 0.75rem; color: var(--muted); }
+.traces { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; font-size: 0.95rem; }
+.traces span { font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+
+/* Results */
+.results { display: grid; gap: 80px; }
+.result { display: grid; gap: 16px; }
+.result .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; font-family: var(--mono); font-size: 0.78rem; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px; border-radius: 999px; font-family: var(--mono); font-size: 0.74rem; }
+.chip.ok { color: var(--checked); background: var(--checked-soft); }
+.chip.plain { color: var(--muted); border: 1px solid var(--rule); }
+.hook { font-size: var(--step-1); line-height: 1.4; max-width: 40rem; }
+.papers { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: 0.92rem; }
+.papers span { font-family: var(--mono); font-size: 0.76rem; color: var(--muted); }
+
+/* The toc for narrow screens, where the rail is hidden */
+.toc { font-family: var(--mono); font-size: 0.78rem; line-height: 1.7; white-space: pre; color: var(--muted); overflow-x: auto; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); padding-block: 14px; }
+.toc a { text-decoration: none; }
+@media (min-width: 1100px) { .toc { display: none; } }
+
+footer { border-top: 1px solid var(--rule); padding-top: 28px; display: grid; gap: 12px; font-size: 0.92rem; color: var(--muted); }
+footer p { max-width: 44rem; }
+.motion button {
+  font: inherit; color: var(--ink); background: none; border: 1px solid var(--rule); border-radius: 999px; padding: 3px 12px; cursor: pointer;
+}
+.motion button:hover { border-color: var(--gold); }
+</style>
+</head>
+<body>
+<div class="page">
+  <aside class="rail" aria-label="Repository">
+    <nav class="tree" aria-label="Chapters"><span class="root">math/</span>
+├── <a href="#readme" data-for="readme">README.md</a>
+├── <a href="#preprints" data-for="preprints">preprints/</a>        <span class="n">722</span>
+├── <a href="#overview" data-for="overview">overview.pdf</a>
+├── <a href="#overview" data-for="overview">CONTENTS.md</a>
+├── <a href="#lean" data-for="lean">lean/</a>
+│   ├── <a href="#lean" data-for="lean">OAI/</a>        <span class="n">121,734</span>
+│   └── <a href="#comparator" data-for="comparator">Comparator…/</a> <span class="n">405</span>
+├── <a href="#traces" data-for="traces">reasoning_traces/</a> <span class="n">10</span>
+├── <a href="#results" data-for="results">preprints/…</a>    <span class="n">3 up close</span>
+└── <a href="#explorer" data-for="explorer">explorer/</a></nav>
+  </aside>
+
+  <main>
+    <!-- README.md -->
+    <section class="ch hero" id="readme">
+      <p class="cmd"><b>$</b> git clone https://github.com/Lameda12/math &amp;&amp; cat math/README.md</p>
+      <h1>Four thousand problems.<br><em>372</em> results.</h1>
+      <p class="lede">This repository holds the mathematics an unreleased OpenAI model wrote when it was posed about 4,000 open research problems: 722 manuscripts in 372 result families, 235 of them with a Lean formalization of at least part of the claim. This is a walk through it, one directory at a time, each drawn in ascii.</p>
+      <ul class="ledger">
+        <li><strong>722</strong> manuscripts</li>
+        <li class="g"><strong>372</strong> result families</li>
+        <li><strong>34,815</strong> pages</li>
+        <li class="c"><strong>235</strong> with Lean</li>
+        <li><strong>17</strong> fields</li>
+      </ul>
+      <p class="motion" hidden>Your system asks for less motion, so the pictures hold still. <button type="button" id="play">Play them anyway</button></p>
+      <figure class="plate" style="--shift:-75%">
+        <ascii-art src="pieces/problem-sky.js" label="A night sky of 4,000 stars over an observatory ridge, 372 of the stars gold"><div class="hold" style="aspect-ratio:240/100;background:#04060d"></div></ascii-art>
+        <figcaption><b>Problem sky.</b> Exactly 4,000 stars, standing in for the roughly 4,000 problems the model was posed. The 372 gold ones are the result families that made the collection. The rest are everything that did not: unsolved, not significant enough, or folded into another family.</figcaption>
+      </figure>
+      <p>The README describes the procedure. Most results came from the same fixed process, using on average three hours of ChatGPT Pro thinking compute each. Aggregating the output into families and manuscripts, and requiring an appropriate level of significance, produced the catalogue. The exceptions it names are the work on a zero-free region for the Riemann zeta function and the Hodge conjecture for CM abelian varieties; the write-up of the Re(s) &gt; 11/12 zero-free region was also edited by people for readability.</p>
+      <p class="note">The README is plain about status: the results are at different stages of verification, not all have Lean formalizations, and some of the unformalized ones could have issues.</p>
+      <div class="toc" aria-label="Chapters"><a href="#readme">README.md</a>  ·  <a href="#preprints">preprints/</a>  ·  <a href="#overview">overview.pdf</a>  ·  <a href="#lean">lean/</a>  ·  <a href="#comparator">ComparatorChallenges/</a>  ·  <a href="#traces">reasoning_traces/</a>  ·  <a href="#results">three results</a>  ·  <a href="#explorer">explorer/</a></div>
+    </section>
+
+    <!-- preprints/ -->
+    <section class="ch" id="preprints">
+      <p class="cmd"><b>$</b> cd preprints/</p>
+      <h2>The stacks</h2>
+      <p class="lede">Every manuscript has its own directory, named for its title and date: the PDF, the LaTeX source, and a README with citation and build instructions.</p>
+<pre class="out"><b>$ ls preprints | wc -l</b>
+722
+<b>$ find preprints -name '*.pdf' | wc -l</b>
+751
+<b>$ find preprints -name '*.tex' -exec cat {} + | wc -l</b>
+2775220
+<b>$ find preprints -type d -name verification | wc -l</b>
+30</pre>
+      <figure class="plate whole">
+        <ascii-art src="pieces/the-stacks.js" label="A bookcase holding 722 books, one per manuscript, thickness by page count and colour by field"><div class="hold" style="aspect-ratio:300/112;background:#07050a"></div></ascii-art>
+        <figcaption><b>The stacks.</b> All 722 papers, one book each. A spine is as thick as the paper is long, from 6 pages to 262, and bound in the colour of its family's field, shelved by field. The page counts come from each PDF; the colours are keyed in the next chapter.</figcaption>
+      </figure>
+      <p>Thirty manuscripts carry a <code>verification/</code> folder with the code and logs behind a computation: 125 Python files and 14 C++ files in all. The directory dates run from September 10 to October 6, 2026, and they bunch: 193 manuscripts are dated September 24 alone, 177 the day before.</p>
+    </section>
+
+    <!-- overview.pdf, CONTENTS.md -->
+    <section class="ch" id="overview">
+      <p class="cmd"><b>$</b> grep -c '^\*\*[0-9]\{3\}\. ' CONTENTS.md</p>
+      <h2>372 families, 17 fields</h2>
+      <p class="lede">A family groups related papers: a principal result with its companion arguments, consequences or alternative proofs. <a href="https://github.com/Lameda12/math/blob/main/overview.pdf">overview.pdf</a> describes every family; <a href="https://github.com/Lameda12/math/blob/main/CONTENTS.md">CONTENTS.md</a> maps each one to its papers and abstracts.</p>
+      <figure class="plate" aria-label="Families and papers by field">
+        <ol class="fields">
+<li><span class="sw" style="background:#a8463a"></span><span class="fn">Algebra</span><span class="bar"><i style="width:45.0%;background:#a8463a"></i></span><span class="fc">18<small> · 29</small></span></li>
+<li><span class="sw" style="background:#3f8c58"></span><span class="fn">Algebraic and complex geometry</span><span class="bar"><i style="width:90.0%;background:#3f8c58"></i></span><span class="fc">36<small> · 89</small></span></li>
+<li><span class="sw" style="background:#3e5ea6"></span><span class="fn">Combinatorics</span><span class="bar"><i style="width:92.5%;background:#3e5ea6"></i></span><span class="fc">37<small> · 50</small></span></li>
+<li><span class="sw" style="background:#9c9682"></span><span class="fn">Convex and metric geometry</span><span class="bar"><i style="width:37.5%;background:#9c9682"></i></span><span class="fc">15<small> · 30</small></span></li>
+<li><span class="sw" style="background:#2f9090"></span><span class="fn">Differential geometry</span><span class="bar"><i style="width:72.5%;background:#2f9090"></i></span><span class="fc">29<small> · 49</small></span></li>
+<li><span class="sw" style="background:#84489a"></span><span class="fn">Dynamical systems and ergodic theory</span><span class="bar"><i style="width:30.0%;background:#84489a"></i></span><span class="fc">12<small> · 19</small></span></li>
+<li><span class="sw" style="background:#c0642c"></span><span class="fn">Functional analysis</span><span class="bar"><i style="width:27.5%;background:#c0642c"></i></span><span class="fc">11<small> · 19</small></span></li>
+<li><span class="sw" style="background:#7e8a34"></span><span class="fn">Group theory</span><span class="bar"><i style="width:35.0%;background:#7e8a34"></i></span><span class="fc">14<small> · 22</small></span></li>
+<li><span class="sw" style="background:#5878a6"></span><span class="fn">Mathematical logic</span><span class="bar"><i style="width:15.0%;background:#5878a6"></i></span><span class="fc">6<small> · 8</small></span></li>
+<li><span class="sw" style="background:#c6a42a"></span><span class="fn">Mathematical physics</span><span class="bar"><i style="width:62.5%;background:#c6a42a"></i></span><span class="fc">25<small> · 59</small></span></li>
+<li><span class="sw" style="background:#984060"></span><span class="fn">Number theory</span><span class="bar"><i style="width:77.5%;background:#984060"></i></span><span class="fc">31<small> · 58</small></span></li>
+<li><span class="sw" style="background:#6a8c72"></span><span class="fn">Operator algebras</span><span class="bar"><i style="width:47.5%;background:#6a8c72"></i></span><span class="fc">19<small> · 31</small></span></li>
+<li><span class="sw" style="background:#5446a8"></span><span class="fn">Partial differential equations</span><span class="bar"><i style="width:40.0%;background:#5446a8"></i></span><span class="fc">16<small> · 29</small></span></li>
+<li><span class="sw" style="background:#a85c3a"></span><span class="fn">Probability and statistical mechanics</span><span class="bar"><i style="width:72.5%;background:#a85c3a"></i></span><span class="fc">29<small> · 105</small></span></li>
+<li><span class="sw" style="background:#2e7486"></span><span class="fn">Real and complex analysis</span><span class="bar"><i style="width:40.0%;background:#2e7486"></i></span><span class="fc">16<small> · 26</small></span></li>
+<li><span class="sw" style="background:#8e6484"></span><span class="fn">Theoretical computer science</span><span class="bar"><i style="width:100.0%;background:#8e6484"></i></span><span class="fc">40<small> · 73</small></span></li>
+<li><span class="sw" style="background:#7a5a3a"></span><span class="fn">Topology</span><span class="bar"><i style="width:45.0%;background:#7a5a3a"></i></span><span class="fc">18<small> · 26</small></span></li>
+</ol>
+        <figcaption>Families per field, with papers after the dot. The swatches are the bindings on the shelves above.</figcaption>
+      </figure>
+    </section>
+
+    <!-- lean/ -->
+    <section class="ch" id="lean">
+      <p class="cmd"><b>$</b> cd lean/</p>
+      <h2>Twenty-six million lines of Lean</h2>
+      <p class="lede">One Lean library, built on Mathlib, holds the formal proofs. Its README recommends compiling only small portions at a time.</p>
+<pre class="out"><b>$ cat lean-toolchain</b>
+leanprover/lean4:v4.34.1
+<b>$ find OAI -name '*.lean' | wc -l</b>
+121734
+<b>$ find OAI -name '*.lean' -exec cat {} + | wc -l</b>
+25910542
+<b>$ ls docs | wc -l</b>
+235</pre>
+      <figure class="plate">
+        <ascii-art src="pieces/lemma-tree.js" label="A tree whose leaves light green one by one until the light runs down to the root"><div class="hold" style="aspect-ratio:240/110;background:#030806"></div></ascii-art>
+        <figcaption><b>Lemma tree.</b> How a formal proof closes, as a picture: the leaves are lemmas, a branch lights only once everything above it has checked, and the root is the theorem. It is an illustration, not the shape of any one proof in the library.</figcaption>
+      </figure>
+      <p>The 235 notes in <a href="https://github.com/Lameda12/math/tree/main/lean/docs"><code>lean/docs</code></a> say exactly what each formalization covers, and it is often less than the whole paper. The note for the π result, for instance, leaves out the paper's consequence for the Flint Hills series. Read the scope note before reading the badge.</p>
+    </section>
+
+    <!-- lean/ComparatorChallenges/ -->
+    <section class="ch" id="comparator">
+      <p class="cmd"><b>$</b> ls ComparatorChallenges/*.lean | wc -l <span>→ 405</span></p>
+      <h2>Checking the statement, not just the proof</h2>
+      <p class="lede">A formal proof is only as good as the statement it proves. Each Comparator challenge restates one theorem on its own, over plain Mathlib, ending in <code>sorry</code>. A JSON file beside it names the module that holds the proof, the theorem it has to supply, and the only axioms that proof may rest on.</p>
+      <figure class="term" style="--cols:80">
+        <div class="frame"><ascii-art src="pieces/comparator.js" label="A terminal printing the Comparator challenge for the 7/8 zero-free region, its JSON, and the command that checks it"><pre class="hold" aria-hidden="true">lean $ cat ComparatorChallenges/QuasiRiemannHypothesis.lean                     
+import Mathlib                                                                  
+                                                                                
+namespace OAI                                                                   
+                                                                                
+theorem riemannZeta_ne_zero_of_seven_eighths_lt_re                              
+    {s : Complex} (hs : (7 / 8 : Real) &lt; s.re) : Ne (riemannZeta s) 0 := by     
+  sorry                                                                         
+                                                                                
+end OAI                                                                         
+lean $ cat ComparatorChallenges/QuasiRiemannHypothesis.json                     
+{                                                                               
+  "challenge_module": "ComparatorChallenges.QuasiRiemannHypothesis",            
+  "solution_module": "OAI.NumberTheory.DirichletL.Nonvanishing",                
+  "theorem_names": [                                                            
+    "OAI.riemannZeta_ne_zero_of_seven_eighths_lt_re"                            
+  ],                                                                            
+  "definition_names": [],                                                       
+  "permitted_axioms": [                                                         
+    "propext",                                                                  
+    "Quot.sound",                                                               
+    "Classical.choice"                                                          
+  ],                                                                            
+  "enable_nanoda": false                                                        
+}                                                                               
+lean $ lake env comparator ComparatorChallenges/QuasiRiemannHypothesis.json█    
+                                                                                
+                                                                                </pre></ascii-art></div>
+        <figcaption><b>Comparator.</b> The challenge file as it is in the repository, in Lean's ASCII spellings (<code>Complex</code> for ℂ, <code>Real</code> for ℝ, <code>Ne</code> for ≠), then its JSON, then the command from the Comparator README. It stops at the prompt: run it yourself to see the verdict.</figcaption>
+      </figure>
+      <p>This one is result 003, the quasi-Riemann hypothesis. Its proof lives in <code>lean/OAI/NumberTheory/DirichletL</code>: 2,926 files and 486,558 lines for a statement that fits on two.</p>
+      <h3>What that statement says</h3>
+      <p>The Riemann hypothesis would put every nontrivial zero of ζ on the line Re s = ½. This result proves something weaker but new: no zeros at all to the right of 7/8. Per its scope note, the Lean formalization covers ζ, every Dirichlet L-function uniformly in the modulus, and finite-order Hecke L-functions over ℚ(√−3).</p>
+      <figure class="term" style="--cols:80;--lh:1">
+        <div class="frame"><ascii-art src="pieces/zeta-z.js" label="Hardy's Z function scrolling over the critical strip, each zero dropping onto the line Re s = 1/2, the band above 7/8 empty"><pre class="hold" aria-hidden="true"> Z(t), with |Z(t)| = |zeta(1/2 + it)|: each sign change is a zero on the line   
+ +4.5                                                                           
+                                                                                
+                                         ▗▟▀▜▄           ▟▀▀▙                   
+                    ▄▟▀▀▀▀▙▖            ▄▛   ▝▙         ▟▘  ▝▙                  
+                  ▄▛▘      ▀▙          ▟▘     ▝▙▖      ▟▘    ▝▙        ▄▄▄      
+                ▗▛▘         ▝▜▖       ▟▘        ▜▖    ▟▘      ▝▌      ▟▘ ▝▙     
+    0 ┤ · · · ▄▛▀ · · · · · · ▀▙· · ·▟▘ · · · · ·▜▄ ▗▛▘ · · · ·▜▖ · ·▟▘ · ▝▙· · 
+        ▄▄▄▄▟▀▘                ▝▜▄▄▄▛▘            ▝▀▀           ▜▄ ▗▛▘     ▝▌   
+                                                                 ▝▀▀        ▜▖  
+                                                                             ▜▖ 
+                                                                              ▜▄
+ -4.5                                                                           
+        ┴ 10                ┴ 20                ┴ 30                ┴ 40        
+Re=1  ┼ ────────────────────────────────────────────────────────────────────────
+ &gt;7/8 │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+      │ ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
+      │         ·             ·       ·         ·    ·         ·     ·    ·     
+      │         ·             ·       ·         ·    ·         ·     ·    ·     
+      │         ·             ·       ·         ·    ·         ·     ·    ·     
+      │         ·             ·       ·         ·    ·         ·     ·    ·     
+      │         ·             ·       ·         ·    ·         ·     ·    ·     
+  1/2 ┤ ┄ ┄ ┄ ┄ o ┄ ┄ ┄ ┄ ┄ ┄ o ┄ ┄ ┄ o ┄ ┄ ┄ ┄ o ┄ ┄o┄ ┄ ┄ ┄ ┄o┄ ┄ ┄o┄ ┄ o ┄ ┄ 
+      │                                                                         
+      │                                                                         
+      │                                                                         
+      │                                                                         
+      │                                                                         
+      │                                                                         
+      │                                                                         
+Re=0  ┼ ────────────────────────────────────────────────────────────────────────
+ zeros with 0 &lt; t &lt; 46: 8, all on Re s = 1/2   none above 7/8 (result 003)      </pre></ascii-art></div>
+        <figcaption><b>Zeta Z.</b> Hardy's Z(t), computed live with the Riemann–Siegel formula. |Z(t)| = |ζ(½ + it)|, so every sign change is a zero on the critical line, and it drops into the strip below as it passes. The shaded band, Re s &gt; 7/8, is what result 003 proves empty. The counts agree with the known ones: 29 zeros up to t = 100, 79 up to 200, 138 up to 300.</figcaption>
+      </figure>
+    </section>
+
+    <!-- reasoning_traces/ -->
+    <section class="ch" id="traces">
+      <p class="cmd"><b>$</b> cd ../reasoning_traces/</p>
+      <h2>Ten summaries of the reasoning</h2>
+      <p class="lede">For ten results the release includes an abridged summary of how the model got there. They mostly paraphrase, but in places they quote the raw reasoning verbatim. Two such excerpts from the Mézard–Parisi summary:</p>
+      <blockquote>Aha recursive structure: overfitting shared variable can simulate original model at smaller scale.<cite>verbatim, mezard-parisi-formula.tex, §1</cite></blockquote>
+      <blockquote>Great! Need carefully prove average error little with shifted depths not rare<cite>verbatim, mezard-parisi-formula.tex, §2</cite></blockquote>
+      <p>The second marks the turn the summary calls shifting branching depths: moving every internal branching depth of a target tree down one level, so each new branching vertex pays a small fresh factor.</p>
+      <figure class="plate">
+        <ascii-art src="pieces/spin-glass.js" label="A diluted spin glass of 200 spins cooling, frustrated bonds glowing magenta"><div class="hold" style="aspect-ratio:240/100;background:#05060c"></div></ascii-art>
+        <figcaption><b>Spin glass.</b> The kind of system result 221 is about: 200 spins with sparse bonds of random sign, cooled under Glauber dynamics. Amber is up, teal is down, and a magenta bond is frustrated, its spins disagreeing with its sign. However cold it gets, some stay frustrated. The theorem itself concerns the limit of the free energy, which no picture shows.</figcaption>
+      </figure>
+      <ol class="traces">
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/ordinary-two-point-correlations.pdf">Ordinary two-point correlations of multiplicative functions</a> <span>007</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/irrationality-exponent-of-pi.pdf">The irrationality exponent of π</a> <span>017</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/symmetric-and-general-mahler-conjectures.pdf">Symmetric and general Mahler conjectures</a> <span>087</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/basic-semidefinite-threshold-np-hardness.pdf">Ordinary NP-hardness at the basic semidefinite threshold</a> <span>102</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/quasipolynomial-arithmetic-progressions.pdf">Quasipolynomial bounds for arithmetic progressions</a> <span>159</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/kaplansky-direct-finiteness-characteristic-two.pdf">Kaplansky's direct-finiteness conjecture in characteristic two</a> <span>197</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/mezard-parisi-formula.pdf">The Mézard–Parisi formula for diluted spin glasses</a> <span>221</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/spontaneous-magnetization-quantum-heisenberg-ferromagnet.pdf">Spontaneous magnetization in the quantum Heisenberg ferromagnet</a> <span>271</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/free-group-factor-isomorphism.pdf">Isomorphism of free group factors</a> <span>287</span></li>
+        <li><a href="https://github.com/Lameda12/math/blob/main/reasoning_traces/relativistic-vlasov-maxwell.pdf">The three-dimensional relativistic Vlasov–Maxwell system</a> <span>362</span></li>
+      </ol>
+    </section>
+
+    <!-- three results -->
+    <section class="ch" id="results">
+      <p class="cmd"><b>$</b> ls preprints | grep -i -e irrationality-exponent-of-pi -e kakeya -e limit-cycles</p>
+      <h2>Three results, up close</h2>
+      <p class="lede">Three families that can be drawn, each with the claim in one sentence, a picture of the idea, and what the Lean covers.</p>
+      <div class="results">
+        <article class="result">
+          <div class="meta"><span>017 · Number theory · 23 pages</span><span class="chip ok">Lean: the exponent is exactly 2</span></div>
+          <h3>The irrationality exponent of π is 2</h3>
+          <p class="hook">π is no easier to approximate by fractions than a typical number.</p>
+          <figure class="term" style="--cols:80">
+            <div class="frame"><ascii-art src="pieces/pi-convergents.js" label="A number line zooming in on pi as its convergents split off, with their exponents plotted below"><pre class="hold" aria-hidden="true"> pi = 3.14159265358979323846...                            view pi +/- 1.00e-16 
+                                                                                
+245850922/78256779                     pi                                       
+           │                            ┃                                       
+   ┴───────┼┴─────────┴────────┴────────╂────────┴─────────┴────────┴────────┴  
+                                        ┃                                       
+                                                                                
+                                                                                
+ 245850922/78256779   |pi - p/q| = 7.82e-17 = q^-2.04                           
+                                                                                
+ mu for each convergent, where |pi - p/q| = q^-mu                               
+  3.5 ┤   o                                                                     
+      │   │         o                                                           
+  3.0 ┤   │         │                                                           
+      │   │         │                                                           
+      │   │         │                                                           
+  2.5 ┤   │         │                                                           
+      │   │         │                                                           
+      │   │         │                                                           
+      │   │         │                                       o                   
+  2.1 ┤   │         │         o         o         o         │                   
+      │   │         │    o    │    o    │    o    │         │    o    o    o    
+      │   │    o    │    │    │    │    │    │    │    o    │    │    │    │    
+  2.0 ┤┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄ ┄┴┄ ┄ ┴ ┄  
+                                                                                
+ limsup of mu over all fractions p/q is exactly 2  (result 017)                 </pre></ascii-art></div>
+            <figcaption><b>Pi convergents.</b> The view zooms in on π, ten times closer every 1.8 seconds. Each continued-fraction convergent splits off from π when the zoom reaches its distance and lands in the plot at its exponent μ, where |π − p/q| = q<sup>−μ</sup>. μ jumps when a large partial quotient follows (355/113, just before the 292) and otherwise stays near 2. The theorem says that for every ν &gt; 2, only finitely many fractions get within q<sup>−ν</sup>. Errors computed to 120 digits.</figcaption>
+          </figure>
+          <ul class="papers"><li><a href="https://github.com/Lameda12/math/blob/main/preprints/The-irrationality-exponent-of-pi-is-2-September-24-2026/paper.pdf">The irrationality exponent of π is 2</a> <span>23 pp</span></li></ul>
+        </article>
+
+        <article class="result">
+          <div class="meta"><span>074 · Real and complex analysis · 272 pages</span><span class="chip plain">paper only, no Lean</span></div>
+          <h3>Kakeya in three and four dimensions</h3>
+          <p class="hook">A set containing a unit needle in every direction in four dimensions has full dimension. Plus the maximal version in three.</p>
+          <figure class="term" style="--cols:64;--lh:1">
+            <div class="frame"><ascii-art src="pieces/kakeya-needle.js" label="A needle of length four turning end for end inside a deltoid"><pre class="hold" aria-hidden="true">                                                                
+        ··                                                      
+         ··                                                     
+         ····                                                   
+          ·····                                                 
+           ·  ···                                               
+           ··   ····                                            
+            ·      ···                                          
+            ·        ····                                       
+            ··          ····                                    
+             ·             ·····                                
+             ·                 ·····                            
+             ·                     ·····                        
+             ·                         ·······                  
+             ·█████████████████████████████████████████·        
+             ·▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓··········█        
+             ·▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▒▒▒▒▒▒▒▒·······                  
+             ·▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒·····                        
+             ·▒▒▒▒▒▒▒▒▒▒▒▒▒▒░░░·····                            
+             ·▒▒▒▒▒▒░░░░░░░·····                                
+            ··░░░░░░░░░░····                                    
+            ·░░░░░░░░····                                       
+            ·░░░░░ ···                                          
+           ··░  ····                                            
+           ·  ···                                               
+          ·····                                                 
+         ····                                                   
+         ··                                                     
+        ··                                                      
+                                                                </pre></ascii-art></div>
+            <figcaption><b>Kakeya needle.</b> Where the question started: how little room does a needle need to turn around? Inside a deltoid every tangent chord has length 4, so a needle of length 4 rides the tangents round and comes back reversed, in area 2π, half the disk it would sweep turning about its middle. Besicovitch showed the area can be as small as you like, which is why the modern question asks about dimension instead.</figcaption>
+          </figure>
+          <ul class="papers">
+            <li><a href="https://github.com/Lameda12/math/blob/main/preprints/Every-four-dimensional-Kakeya-set-has-full-Hausdorff-dimension-September-24-2026/paper.pdf">Every four-dimensional Kakeya set has full Hausdorff dimension</a> <span>175 pp</span></li>
+            <li><a href="https://github.com/Lameda12/math/blob/main/preprints/The-Kakeya-maximal-conjecture-in-three-dimensions-September-23-2026/paper.pdf">The Kakeya maximal conjecture in three dimensions</a> <span>97 pp</span></li>
+          </ul>
+        </article>
+
+        <article class="result">
+          <div class="meta"><span>143 · Dynamical systems · 200 pages</span><span class="chip ok">Lean: the quintic Liénard case only</span></div>
+          <h3>Hilbert's sixteenth problem: uniform bounds for limit cycles</h3>
+          <p class="hook">A planar polynomial vector field has a bounded number of limit cycles, depending only on its degree.</p>
+          <figure class="plate">
+            <ascii-art src="pieces/limit-cycles.js" label="Tracers in a polynomial vector field gathering on two limit cycles, with a dashed repelling cycle between them"><div class="hold" style="aspect-ratio:240/100;background:#06050b"></div></ascii-art>
+            <figcaption><b>Limit cycles.</b> Tracers in a degree-7 polynomial field built to have exactly three limit cycles. Two attract and gather the tracers into rings, orange inside and blue outside; the dashed one between them repels. The paper bounds how many such cycles a field of a given degree can have. The Lean formalization covers a narrower statement: a quintic Liénard system x′ = y − F(x), y′ = −x has at most two limit cycles, and some have exactly two.</figcaption>
+          </figure>
+          <ul class="papers">
+            <li><a href="https://github.com/Lameda12/math/blob/main/preprints/uniform-bounds-for-planar-polynomial-limit-cycles-September-24-2026/uniform-bounds-for-planar-polynomial-limit-cycles-September-24-2026.pdf">Uniform bounds for planar polynomial limit cycles</a> <span>160 pp</span></li>
+            <li><a href="https://github.com/Lameda12/math/blob/main/preprints/two-limit-cycles-for-quintic-lienard-systems-September-24-2026/two-limit-cycles-for-quintic-lienard-systems-September-24-2026.pdf">Two limit cycles for quintic Liénard systems</a> <span>40 pp</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- explorer/ -->
+    <section class="ch" id="explorer">
+      <p class="cmd"><b>$</b> open explorer/index.html</p>
+      <h2>The other 369</h2>
+      <p class="lede"><a href="../index.html">The Proposition</a> puts every family on one card with a one-sentence statement, its Lean status and its papers, so you can skim all 372 without opening a PDF.</p>
+      <footer>
+        <p>The pictures are drawn with <a href="https://github.com/bas3line/ascii">ascii.rest</a> by @bas3line (MIT). The nine pieces here were written for this page to the library's piece contract and pass its checker. Their source is in <code>explorer/walkthrough/src/pieces</code>; rebuild with <code>node explorer/walkthrough/build.mjs</code>.</p>
+        <p>Every number on this page comes from the repository: the commands shown were run on it, the shelf and field key are generated from <code>explorer/data.json</code>, and the quotes are copied from the reasoning summaries.</p>
+      </footer>
+    </section>
+  </main>
+</div>
+
+<script type="module">
+  // ascii.rest defines <ascii-art>; the vendored copy stands in where its site can't be reached
+  import("https://ascii.rest/ascii.js").catch(() => import("./vendor/ascii.rest/ascii.js"));
+</script>
+<script>
+  // The rail marks the chapter in view.
+  (() => {
+    const links = [...document.querySelectorAll(".tree a[data-for]")];
+    const seen = new Map();
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) seen.set(e.target.id, e.isIntersecting ? e.intersectionRatio : 0);
+      let best = null, ratio = 0;
+      for (const [id, r] of seen) if (r > ratio) (best = id), (ratio = r);
+      if (best) for (const a of links) a.setAttribute("aria-current", a.dataset.for === best ? "true" : "false");
+    }, { threshold: [0, 0.15, 0.4, 0.7], rootMargin: "-20% 0px -40% 0px" });
+    document.querySelectorAll("main > section[id]").forEach((s) => io.observe(s));
+
+    // Readers who ask for less motion get still pictures, with a way to play them.
+    const still = matchMedia("(prefers-reduced-motion: reduce)");
+    const box = document.querySelector(".motion");
+    if (still.matches && box) box.hidden = false;
+    document.getElementById("play")?.addEventListener("click", (ev) => {
+      document.querySelectorAll("ascii-art").forEach((el) => el.setAttribute("options", '{"motion":true}'));
+      ev.currentTarget.closest(".motion").textContent = "Playing.";
+    });
+  })();
+</script>
+</body>
+</html>
